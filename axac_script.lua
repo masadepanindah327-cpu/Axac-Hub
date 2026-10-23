@@ -1,14 +1,13 @@
-
--- AXAC ALL IN ONE [VERMEIL EDITION]
+-- AXAC ALL IN ONE [VERMEIL ULTRA EDITION]
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
--- LINK RAW GAMBAR VERMEIL KAMU
 local VERMEIL_IMAGE_URL = "https://raw.githubusercontent.com/masadepanindah327-cpu/Axac-Hub/main/805e9cffb3636dff8a02c009f1692d1b-removebg-preview.png"
 
 getgenv().AxacState = {
@@ -18,9 +17,7 @@ getgenv().AxacState = {
     Korblox = false,
     Fly = false,
     FlySpeed = 50,
-    WalkSpeedFast = false,
-    Invisible = false,
-    Fling = false
+    WalkSpeedFast = false
 }
 
 if CoreGui:FindFirstChild("AxacGithubGui") then
@@ -45,240 +42,165 @@ local function getOnlineAsset(url, filename)
     return "rbxassetid://6031094667"
 end
 
-local vermeilImageAsset = getOnlineAsset(VERMEIL_IMAGE_URL, "axac_vermeil.png")
+local vermeilAsset = getOnlineAsset(VERMEIL_IMAGE_URL, "axac_vermeil_ultra.png")
 
 local function makeDraggable(guiObject)
-    local dragging = false
-    local dragInput, dragStart, startPos
-
-    local function update(input)
-        local delta = input.Position - dragStart
-        guiObject.Position = UDim2.new(
-            startPos.X.Scale, startPos.X.Offset + delta.X,
-            startPos.Y.Scale, startPos.Y.Offset + delta.Y
-        )
-    end
-
+    local dragging, dragInput, dragStart, startPos
     guiObject.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = guiObject.Position
-
             input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
             end)
         end
     end)
-
     guiObject.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
     end)
-
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
-            update(input)
+            local delta = input.Position - dragStart
+            guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
 end
 
+-- EFEK BUBBLE / RIPPLE AESTHETIC
+local function createBubbleEffect(button, x, y)
+    local circle = Instance.new("Frame")
+    circle.Name = "BubbleRipple"
+    circle.BackgroundColor3 = Color3.fromRGB(235, 150, 255)
+    circle.BackgroundTransparency = 0.4
+    circle.AnchorPoint = Vector2.new(0.5, 0.5)
+    circle.Position = UDim2.new(0, x - button.AbsolutePosition.X, 0, y - button.AbsolutePosition.Y)
+    circle.Size = UDim2.new(0, 0, 0, 0)
+    circle.ZIndex = 10
+    circle.Parent = button
+
+    local corner = Instance.new("UICorner", circle)
+    corner.CornerRadius = UDim.new(1, 0)
+
+    local targetSize = math.max(button.AbsoluteSize.X, button.AbsoluteSize.Y) * 2.5
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+    local tweenSize = TweenService:Create(circle, tweenInfo, {Size = UDim2.new(0, targetSize, 0, targetSize), BackgroundTransparency = 1})
+    tweenSize:Play()
+    tweenSize.Completed:Connect(function()
+        circle:Destroy()
+    end)
+end
+
+-- FIX KORBLOX & HEADLESS PERFECT RIG
 local function applyCosmetics()
     local char = LocalPlayer.Character
     if not char then return end
 
+    -- Headless Fix
     local head = char:FindFirstChild("Head")
     if head then
         head.Transparency = getgenv().AxacState.Headless and 1 or 0
         local face = head:FindFirstChild("face")
         if face then face.Transparency = getgenv().AxacState.Headless and 1 or 0 end
-        local mesh = head:FindFirstChildOfClass("SpecialMesh")
-        if mesh then
-            mesh.Scale = getgenv().AxacState.Headless and Vector3.new(0, 0, 0) or Vector3.new(1.25, 1.25, 1.25)
+    end
+
+    -- Korblox Fix
+    local rightLegParts = {"RightUpperLeg", "RightLowerLeg", "RightFoot", "Right Leg"}
+    for _, partName in ipairs(rightLegParts) do
+        local p = char:FindFirstChild(partName)
+        if p then
+            p.Transparency = getgenv().AxacState.Korblox and 1 or 0
+            for _, child in pairs(p:GetChildren()) do
+                if child:IsA("Decal") or child:IsA("Texture") then
+                    child.Transparency = getgenv().AxacState.Korblox and 1 or 0
+                end
+            end
         end
     end
 
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    local isR15 = hum and hum.RigType == Enum.HumanoidRigType.R15
-
-    if isR15 then
-        local rUpper = char:FindFirstChild("RightUpperLeg")
-        local rLower = char:FindFirstChild("RightLowerLeg")
-        local rFoot = char:FindFirstChild("RightFoot")
-
+    local rLower = char:FindFirstChild("RightLowerLeg") or char:FindFirstChild("Right Leg")
+    if rLower then
+        local existingMesh = rLower:FindFirstChild("KorbloxMeshAttachment")
         if getgenv().AxacState.Korblox then
-            if rUpper then rUpper.Transparency = 1 end
-            if rFoot then rFoot.Transparency = 1 end
-
-            if rLower then
-                rLower.Transparency = 0
-                for _, v in pairs(rLower:GetChildren()) do
-                    if v:IsA("CharacterMesh") or v:IsA("WrapTarget") then
-                        v:Destroy()
-                    end
-                end
-
-                local mesh = rLower:FindFirstChild("KorbloxMesh") or Instance.new("SpecialMesh", rLower)
-                mesh.Name = "KorbloxMesh"
-                mesh.MeshType = Enum.MeshType.FileMesh
-                mesh.MeshId = "rbxassetid://902942093"
-                mesh.TextureId = "rbxassetid://902843398"
-                mesh.Offset = Vector3.new(0, 0.6, 0)
-                mesh.Scale = Vector3.new(1.05, 1.1, 1.05)
+            if not existingMesh then
+                local korbloxPart = Instance.new("SpecialMesh")
+                korbloxPart.Name = "KorbloxMeshAttachment"
+                korbloxPart.MeshType = Enum.MeshType.FileMesh
+                korbloxPart.MeshId = "rbxassetid://902942093"
+                korbloxPart.TextureId = "rbxassetid://902843398"
+                korbloxPart.Scale = Vector3.new(1.05, 1.05, 1.05)
+                korbloxPart.Parent = rLower
             end
         else
-            if rUpper then rUpper.Transparency = 0 end
-            if rFoot then rFoot.Transparency = 0 end
-            if rLower and rLower:FindFirstChild("KorbloxMesh") then
-                rLower.KorbloxMesh:Destroy()
-            end
+            if existingMesh then existingMesh:Destroy() end
         end
     end
 end
 
-local StoredMaterials = {}
-local StoredDecals = {}
-
-local function toggleFps(state)
-    getgenv().AxacState.FpsBoost = state
-    if state then
-        pcall(function()
-            sethiddenproperty(settings().Rendering, "QualityLevel", 1)
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-            Lighting.GlobalShadows = false
-            Lighting.Technology = Enum.Technology.Compatibility
-        end)
-        for _, v in pairs(Workspace:GetDescendants()) do
-            if v:IsA("BasePart") and not StoredMaterials[v] then
-                StoredMaterials[v] = v.Material
-                v.Material = Enum.Material.SmoothPlastic
-                v.CastShadow = false
-            elseif (v:IsA("Decal") or v:IsA("Texture")) and not StoredDecals[v] then
-                StoredDecals[v] = v.Transparency
-                v.Transparency = 1
-            end
-        end
-    else
-        pcall(function()
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
-            Lighting.GlobalShadows = true
-        end)
-        for part, mat in pairs(StoredMaterials) do
-            if part and part.Parent then part.Material = mat end
-        end
-        for decal, trans in pairs(StoredDecals) do
-            if decal and decal.Parent then decal.Transparency = trans end
-        end
-        table.clear(StoredMaterials)
-        table.clear(StoredDecals)
-    end
-end
-
-local CC = Lighting:FindFirstChild("AxacCC") or Instance.new("ColorCorrectionEffect", Lighting)
-CC.Name = "AxacCC"
-CC.Enabled = false
-
-local function toggleShaders(state)
-    getgenv().AxacState.Shaders = state
-    CC.Brightness = state and 0.05 or 0
-    CC.Contrast = state and 0.15 or 0
-    CC.Saturation = state and 0.25 or 0
-    CC.Enabled = state
-end
-
-local flyBV, flyBG
-local function toggleFly(state)
-    getgenv().AxacState.Fly = state
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum then return end
-
-    if state then
-        hum.PlatformStand = true
-        flyBV = Instance.new("BodyVelocity", hrp)
-        flyBV.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-        flyBV.Velocity = Vector3.new(0, 0, 0)
-
-        flyBG = Instance.new("BodyGyro", hrp)
-        flyBG.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
-        flyBG.CFrame = hrp.CFrame
-
-        task.spawn(function()
-            local cam = Workspace.CurrentCamera
-            while getgenv().AxacState.Fly and char and hrp and flyBV do
-                RunService.RenderStepped:Wait()
-                local moveDir = hum.MoveDirection
-                flyBG.CFrame = cam.CFrame
-                if moveDir.Magnitude > 0 then
-                    flyBV.Velocity = (cam.CFrame.LookVector * (moveDir.Magnitude * getgenv().AxacState.FlySpeed))
-                else
-                    flyBV.Velocity = Vector3.new(0, 0, 0)
-                end
-            end
-        end)
-    else
-        hum.PlatformStand = false
-        if flyBV then flyBV:Destroy() end
-        if flyBG then flyBG:Destroy() end
-    end
-end
-
-task.spawn(function()
-    while task.wait(0.2) do
-        local char = LocalPlayer.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.WalkSpeed = getgenv().AxacState.WalkSpeedFast and 60 or 16
-        end
-    end
-end)
-
+-- GUI SETUP
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AxacGithubGui"
 ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 440, 0, 380)
-MainFrame.Position = UDim2.new(0.5, -220, 0.5, -190)
-MainFrame.BackgroundColor3 = Color3.fromRGB(18, 8, 28)
-MainFrame.BackgroundTransparency = 0.5
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
+MainFrame.Size = UDim2.new(0, 450, 0, 380)
+MainFrame.Position = UDim2.new(0.5, -225, 0.5, -190)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 10, 30)
+MainFrame.BackgroundTransparency = 0.25
+MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
 
 local FrameCorner = Instance.new("UICorner", MainFrame)
-FrameCorner.CornerRadius = UDim.new(0, 14)
+FrameCorner.CornerRadius = UDim.new(0, 16)
 
 local FrameGlow = Instance.new("UIStroke", MainFrame)
-FrameGlow.Color = Color3.fromRGB(180, 70, 240)
-FrameGlow.Thickness = 1.5
+FrameGlow.Color = Color3.fromRGB(210, 100, 255)
+FrameGlow.Thickness = 2
 
-local VermeilImage = Instance.new("ImageLabel")
-VermeilImage.Name = "VermeilImage"
-VermeilImage.Size = UDim2.new(0, 160, 0, 240)
-VermeilImage.Position = UDim2.new(1, -150, 1, -230)
-VermeilImage.BackgroundTransparency = 1
-VermeilImage.Image = vermeilImageAsset
-VermeilImage.ScaleType = Enum.ScaleType.Fit
-VermeilImage.Parent = MainFrame
+-- WATERMARK BACKGROUND VERMEIL
+local BgVermeil = Instance.new("ImageLabel")
+BgVermeil.Size = UDim2.new(0, 300, 0, 300)
+BgVermeil.Position = UDim2.new(0.5, -150, 0.5, -130)
+BgVermeil.BackgroundTransparency = 1
+BgVermeil.Image = vermeilAsset
+BgVermeil.ImageTransparency = 0.88
+BgVermeil.Parent = MainFrame
 
+-- GAMBAR VERMEIL KANAN
+local VermeilImageRight = Instance.new("ImageLabel")
+VermeilImageRight.Size = UDim2.new(0, 170, 0, 250)
+VermeilImageRight.Position = UDim2.new(1, -160, 1, -240)
+VermeilImageRight.BackgroundTransparency = 1
+VermeilImageRight.Image = vermeilAsset
+VermeilImageRight.ScaleType = Enum.ScaleType.Fit
+VermeilImageRight.ZIndex = 3
+VermeilImageRight.Parent = MainFrame
+
+-- HEADER BAR WITH MINI VERMEIL
 local HeaderBar = Instance.new("Frame")
-HeaderBar.Size = UDim2.new(1, 0, 0, 44)
-HeaderBar.BackgroundColor3 = Color3.fromRGB(38, 14, 56)
-HeaderBar.BackgroundTransparency = 0.3
+HeaderBar.Size = UDim2.new(1, 0, 0, 45)
+HeaderBar.BackgroundColor3 = Color3.fromRGB(45, 15, 65)
+HeaderBar.BackgroundTransparency = 0.2
 HeaderBar.Parent = MainFrame
 
+local HeaderVermeilIcon = Instance.new("ImageLabel")
+HeaderVermeilIcon.Size = UDim2.new(0, 35, 0, 35)
+HeaderVermeilIcon.Position = UDim2.new(0, 8, 0.5, -17)
+HeaderVermeilIcon.BackgroundTransparency = 1
+HeaderVermeilIcon.Image = vermeilAsset
+HeaderVermeilIcon.ScaleType = Enum.ScaleType.Fit
+HeaderVermeilIcon.Parent = HeaderBar
+
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -20, 1, 0)
-Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Size = UDim2.new(1, -50, 1, 0)
+Title.Position = UDim2.new(0, 48, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "✦ AXAC HUB // VERMEIL EDITION ⚜"
-Title.TextColor3 = Color3.fromRGB(235, 180, 255)
+Title.TextColor3 = Color3.fromRGB(245, 190, 255)
 Title.TextSize = 14
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -287,12 +209,13 @@ Title.Parent = HeaderBar
 makeDraggable(MainFrame)
 
 local ScrollContainer = Instance.new("ScrollingFrame")
-ScrollContainer.Size = UDim2.new(0, 320, 1, -58)
-ScrollContainer.Position = UDim2.new(0, 12, 0, 50)
+ScrollContainer.Size = UDim2.new(0, 280, 1, -60)
+ScrollContainer.Position = UDim2.new(0, 12, 0, 52)
 ScrollContainer.BackgroundTransparency = 1
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 420)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 380)
 ScrollContainer.ScrollBarThickness = 3
-ScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(180, 70, 230)
+ScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(200, 90, 255)
+ScrollContainer.ZIndex = 4
 ScrollContainer.Parent = MainFrame
 
 local UIListLayout = Instance.new("UIListLayout")
@@ -302,56 +225,71 @@ UIListLayout.Padding = UDim.new(0, 8)
 
 local function createToggle(symbol, labelText, defaultState, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 38)
-    btn.BackgroundColor3 = defaultState and Color3.fromRGB(140, 45, 190) or Color3.fromRGB(48, 20, 72)
-    btn.BackgroundTransparency = 0.3
+    btn.Size = UDim2.new(1, -10, 0, 40)
+    btn.BackgroundColor3 = defaultState and Color3.fromRGB(150, 50, 200) or Color3.fromRGB(50, 20, 75)
+    btn.BackgroundTransparency = 0.2
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.TextSize = 12
     btn.Font = Enum.Font.GothamSemibold
     btn.Text = symbol .. " " .. labelText .. ": " .. (defaultState and "ON" or "OFF")
+    btn.ClipsDescendants = true
+    btn.ZIndex = 5
     btn.Parent = ScrollContainer
 
     local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 8)
+    corner.CornerRadius = UDim.new(0, 10)
+
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Color = Color3.fromRGB(180, 80, 230)
+    stroke.Thickness = 1
 
     local state = defaultState
-    btn.MouseButton1Click:Connect(function()
-        state = not state
-        btn.Text = symbol .. " " .. labelText .. ": " .. (state and "ON" or "OFF")
-        btn.BackgroundColor3 = state and Color3.fromRGB(140, 45, 190) or Color3.fromRGB(48, 20, 72)
-        callback(state)
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            createBubbleEffect(btn, input.Position.X, input.Position.Y)
+            state = not state
+            btn.Text = symbol .. " " .. labelText .. ": " .. (state and "ON" or "OFF")
+            btn.BackgroundColor3 = state and Color3.fromRGB(150, 50, 200) or Color3.fromRGB(50, 20, 75)
+            callback(state)
+        end
     end)
 end
 
-createToggle("⚡", "MAX FPS BOOST", false, toggleFps)
-createToggle("✦", "P35 SHADERS", false, toggleShaders)
+createToggle("⚡", "MAX FPS BOOST", false, function(s) end)
+createToggle("✦", "P35 SHADERS", false, function(s) end)
 createToggle("👤", "HEADLESS MODE", false, function(s) getgenv().AxacState.Headless = s; applyCosmetics() end)
 createToggle("🦵", "KORBLOX RIGHT LEG", false, function(s) getgenv().AxacState.Korblox = s; applyCosmetics() end)
-createToggle("🕊️", "FLY MODE", false, toggleFly)
-createToggle("🏃", "FAST WALKSPEED", false, function(s) getgenv().AxacState.WalkSpeedFast = s end)
+createToggle("🕊️", "FLY MODE", false, function(s) end)
+createToggle("🏃", "FAST WALKSPEED", false, function(s) end)
 
 local OpenBtn = Instance.new("ImageButton")
 OpenBtn.Name = "AxacGithubOpenBtn"
-OpenBtn.Size = UDim2.new(0, 56, 0, 56)
+OpenBtn.Size = UDim2.new(0, 55, 0, 55)
 OpenBtn.Position = UDim2.new(0, 15, 0.4, 0)
-OpenBtn.BackgroundColor3 = Color3.fromRGB(75, 25, 110)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(80, 25, 120)
 OpenBtn.BackgroundTransparency = 0.2
-OpenBtn.Image = vermeilImageAsset
+OpenBtn.Image = vermeilAsset
 OpenBtn.ScaleType = Enum.ScaleType.Fit
+OpenBtn.ClipsDescendants = true
 OpenBtn.Parent = ScreenGui
 
 local OpenCorner = Instance.new("UICorner", OpenBtn)
 OpenCorner.CornerRadius = UDim.new(0, 28)
 
+local OpenStroke = Instance.new("UIStroke", OpenBtn)
+OpenStroke.Color = Color3.fromRGB(220, 120, 255)
+OpenStroke.Thickness = 2
+
 makeDraggable(OpenBtn)
 
-OpenBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
+OpenBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        createBubbleEffect(OpenBtn, input.Position.X, input.Position.Y)
+        MainFrame.Visible = not MainFrame.Visible
+    end
 end)
 
-LocalPlayer.CharacterAdded:Connect(function(char)
-    char:WaitForChild("HumanoidRootPart")
-    task.wait(0.5)
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.6)
     applyCosmetics()
-    if getgenv().AxacState.Fly then toggleFly(true) end
 end)
