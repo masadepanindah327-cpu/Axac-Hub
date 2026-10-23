@@ -1,4 +1,4 @@
--- AXAC ALL IN ONE [Axac Vermeil Exclusive Edition]
+-- AXAC ALL IN ONE [Axac Vermeil Exclusive Edition - ULTRA FEATURED]
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
@@ -22,7 +22,10 @@ getgenv().AxacState = {
     InfiniteJump = false,
     Noclip = false,
     EspPlayer = false,
-    Fullbright = false
+    Fullbright = false,
+    SpinBot = false,
+    GhostMode = false,
+    RgbAvatar = false
 }
 
 if CoreGui:FindFirstChild("AxacGithubGui") then
@@ -70,20 +73,20 @@ local function makeDraggable(guiObject)
     end)
 end
 
--- COSMETICS (KORBLOX & HEADLESS)
+-- COSMETICS (KORBLOX & HEADLESS ULTRA FIX)
 local function applyCosmetics()
     local char = LocalPlayer.Character
     if not char then return end
 
     local head = char:FindFirstChild("Head")
     if head then
-        head.Transparency = getgenv().AxacState.Headless and 1 or 0
+        head.Transparency = getgenv().AxacState.Headless and 1 or (getgenv().AxacState.GhostMode and 0.5 or 0)
         local face = head:FindFirstChild("face")
-        if face then face.Transparency = getgenv().AxacState.Headless and 1 or 0 end
+        if face then face.Transparency = getgenv().AxacState.Headless and 1 or (getgenv().AxacState.GhostMode and 0.5 or 0) end
     end
 
-    local rLower = char:FindFirstChild("RightLowerLeg") or char:FindFirstChild("Right Leg")
     local rUpper = char:FindFirstChild("RightUpperLeg")
+    local rLower = char:FindFirstChild("RightLowerLeg")
     local rFoot = char:FindFirstChild("RightFoot")
 
     if getgenv().AxacState.Korblox then
@@ -91,19 +94,22 @@ local function applyCosmetics()
         if rFoot then rFoot.Transparency = 1 end
         if rLower then
             rLower.Transparency = 0
-            local mesh = rLower:FindFirstChild("KorbloxMeshAttachment") or Instance.new("SpecialMesh", rLower)
-            mesh.Name = "KorbloxMeshAttachment"
+            for _, child in pairs(rLower:GetChildren()) do
+                if child:IsA("CharacterMesh") or child:IsA("WrapTarget") then child:Destroy() end
+            end
+            local mesh = rLower:FindFirstChild("KorbloxRealMesh") or Instance.new("SpecialMesh", rLower)
+            mesh.Name = "KorbloxRealMesh"
             mesh.MeshType = Enum.MeshType.FileMesh
             mesh.MeshId = "rbxassetid://902942093"
             mesh.TextureId = "rbxassetid://902843398"
             mesh.Scale = Vector3.new(1.05, 1.05, 1.05)
         end
     else
-        if rUpper then rUpper.Transparency = 0 end
-        if rFoot then rFoot.Transparency = 0 end
-        if rLower and rLower:FindFirstChild("KorbloxMeshAttachment") then
-            rLower.KorbloxMeshAttachment:Destroy()
-            rLower.Transparency = 0
+        if rUpper then rUpper.Transparency = getgenv().AxacState.GhostMode and 0.5 or 0 end
+        if rFoot then rFoot.Transparency = getgenv().AxacState.GhostMode and 0.5 or 0 end
+        if rLower then
+            if rLower:FindFirstChild("KorbloxRealMesh") then rLower.KorbloxRealMesh:Destroy() end
+            rLower.Transparency = getgenv().AxacState.GhostMode and 0.5 or 0
         end
     end
 end
@@ -134,7 +140,9 @@ local function toggleFly(state)
                 local moveDir = hum.MoveDirection
                 flyBG.CFrame = cam.CFrame
                 if moveDir.Magnitude > 0 then
-                    flyBV.Velocity = (cam.CFrame.LookVector * (moveDir.Magnitude * getgenv().AxacState.FlySpeed))
+                    local camCFrame = cam.CFrame
+                    local moveVector = (camCFrame.RightVector * moveDir.X) + (camCFrame.LookVector * -moveDir.Z)
+                    flyBV.Velocity = moveVector.Unit * getgenv().AxacState.FlySpeed
                 else
                     flyBV.Velocity = Vector3.new(0, 0, 0)
                 end
@@ -144,6 +152,33 @@ local function toggleFly(state)
         hum.PlatformStand = false
         if flyBV then flyBV:Destroy() end
         if flyBG then flyBG:Destroy() end
+    end
+end
+
+-- SPIN BOT / ANTI-AIM
+task.spawn(function()
+    while RunService.RenderStepped:Wait() do
+        if getgenv().AxacState.SpinBot then
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(30), 0)
+            end
+        end
+    end
+end)
+
+-- GHOST TRANSPARENCY MODE
+local function toggleGhost(state)
+    getgenv().AxacState.GhostMode = state
+    local char = LocalPlayer.Character
+    if char then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "Head" then
+                part.Transparency = state and 0.5 or 0
+            end
+        end
+        applyCosmetics()
     end
 end
 
@@ -232,19 +267,24 @@ local function toggleFullbright(state)
     end
 end
 
+-- LOOP FORCE APPLY STATS
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(0.2) do
         if getgenv().AxacState.EspPlayer then updateEsp() end
         local char = LocalPlayer.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
         if hum then
+            hum.UseJumpPower = true
             hum.WalkSpeed = getgenv().AxacState.WalkSpeedFast and 75 or 16
-            hum.JumpPower = getgenv().AxacState.HighJump and 120 or 50
+            hum.JumpPower = getgenv().AxacState.HighJump and 130 or 50
+            if hum:FindFirstChild("JumpHeight") then
+                hum.JumpHeight = getgenv().AxacState.HighJump and 28 or 7.2
+            end
         end
     end
 end)
 
--- GUI SETUP (PERSEGI PANJANG LANDSCAPE KE KANAN)
+-- GUI SETUP (LANDSCAPE)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AxacGithubGui"
 ScreenGui.Parent = CoreGui
@@ -258,7 +298,6 @@ MainFrame.BackgroundTransparency = 0.25
 MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
 
--- Corner Sudut Tidak Lancip
 local FrameCorner = Instance.new("UICorner", MainFrame)
 FrameCorner.CornerRadius = UDim.new(0, 20)
 
@@ -275,6 +314,19 @@ VermeilImageRight.Image = vermeilAsset
 VermeilImageRight.ScaleType = Enum.ScaleType.Fit
 VermeilImageRight.ZIndex = 3
 VermeilImageRight.Parent = MainFrame
+
+-- TEKS ESTETIK "AXAC MULAI DARI NOL" DI ATAS VERMEIL
+local QuoteText = Instance.new("TextLabel")
+QuoteText.Size = UDim2.new(0, 160, 0, 24)
+QuoteText.Position = UDim2.new(1, -162, 1, -260)
+QuoteText.BackgroundTransparency = 1
+QuoteText.Text = "Axac Mulai Dari Nol ⚜"
+QuoteText.TextColor3 = Color3.fromRGB(240, 180, 255)
+QuoteText.TextSize = 11
+QuoteText.Font = Enum.Font.GothamBold
+QuoteText.TextStrokeTransparency = 0.5
+QuoteText.ZIndex = 4
+QuoteText.Parent = MainFrame
 
 local HeaderBar = Instance.new("Frame")
 HeaderBar.Size = UDim2.new(1, 0, 0, 45)
@@ -307,7 +359,7 @@ local ScrollContainer = Instance.new("ScrollingFrame")
 ScrollContainer.Size = UDim2.new(0, 330, 1, -58)
 ScrollContainer.Position = UDim2.new(0, 12, 0, 50)
 ScrollContainer.BackgroundTransparency = 1
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 580)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 720)
 ScrollContainer.ScrollBarThickness = 4
 ScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(210, 90, 255)
 ScrollContainer.ZIndex = 4
@@ -342,7 +394,7 @@ local function createToggle(symbol, labelText, defaultState, callback)
     end)
 end
 
--- KONTROL FLY SPEED
+-- FLY SPEED CONTROLLER
 local FlySpeedFrame = Instance.new("Frame")
 FlySpeedFrame.Size = UDim2.new(1, -10, 0, 42)
 FlySpeedFrame.BackgroundColor3 = Color3.fromRGB(40, 15, 60)
@@ -396,7 +448,7 @@ BtnPlus.MouseButton1Click:Connect(function()
     FlyLabel.Text = "🕊️ FLY SPEED: " .. getgenv().AxacState.FlySpeed
 end)
 
--- OPEN / CLOSE BUTTON LINGKARAN
+-- OPEN BUTTON
 local OpenBtn = Instance.new("ImageButton")
 OpenBtn.Name = "AxacGithubOpenBtn"
 OpenBtn.Size = UDim2.new(0, 56, 0, 56)
@@ -420,8 +472,11 @@ OpenBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- TOGGLE ALL FEATURES
+-- ALL TOGGLES
 createToggle("🌈", "RGB OUTLINE MODE", false, function(s) getgenv().AxacState.RgbMode = s end)
+createToggle("✨", "RGB AVATAR GLOW (PAMER)", false, function(s) getgenv().AxacState.RgbAvatar = s end)
+createToggle("🌀", "SPIN BOT 360", false, function(s) getgenv().AxacState.SpinBot = s end)
+createToggle("👻", "GHOST INVISIBLE MODE", false, toggleGhost)
 createToggle("🕊️", "FLY MODE", false, toggleFly)
 createToggle("🏃", "FAST WALKSPEED", false, function(s) getgenv().AxacState.WalkSpeedFast = s end)
 createToggle("🦘", "HIGH JUMP POWER", false, function(s) getgenv().AxacState.HighJump = s end)
@@ -434,18 +489,36 @@ createToggle("☀️", "FULLBRIGHT (MODE TERANG)", false, toggleFullbright)
 createToggle("⚡", "MAX FPS BOOST", false, toggleFps)
 createToggle("✦", "P35 SHADERS", false, toggleShaders)
 
--- LOOP CHROMA / RGB LIGHTING EFEK
+-- LOOP RGB MODE & AVATAR GLOW
 task.spawn(function()
     local hue = 0
     while RunService.RenderStepped:Wait() do
+        hue = (hue + 0.005) % 1
+        local rgbColor = Color3.fromHSV(hue, 0.8, 1)
+
+        -- RGB Outline GUI
         if getgenv().AxacState.RgbMode then
-            hue = (hue + 0.005) % 1
-            local rgbColor = Color3.fromHSV(hue, 0.8, 1)
             FrameGlow.Color = rgbColor
             OpenStroke.Color = rgbColor
         else
             FrameGlow.Color = Color3.fromRGB(210, 100, 255)
             OpenStroke.Color = Color3.fromRGB(220, 120, 255)
+        end
+
+        -- RGB Avatar Glow Pamer
+        local char = LocalPlayer.Character
+        if char then
+            local highlight = char:FindFirstChild("AxacAvatarGlow")
+            if getgenv().AxacState.RgbAvatar then
+                if not highlight then
+                    highlight = Instance.new("Highlight", char)
+                    highlight.Name = "AxacAvatarGlow"
+                end
+                highlight.FillColor = rgbColor
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+            else
+                if highlight then highlight:Destroy() end
+            end
         end
     end
 end)
@@ -453,4 +526,5 @@ end)
 LocalPlayer.CharacterAdded:Connect(function()
     task.wait(0.6)
     applyCosmetics()
+    if getgenv().AxacState.Fly then toggleFly(true) end
 end)
