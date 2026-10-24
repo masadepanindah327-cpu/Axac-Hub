@@ -1,4 +1,4 @@
--- AXAC ALL IN ONE [Axac Vermeil Exclusive Edition - ENHANCED VISUALS & DYNAMIC UI BUILD]
+-- AXAC ALL IN ONE [Axac Vermeil Exclusive Edition - FULL UNIFIED BUILD]
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
@@ -42,16 +42,31 @@ if CoreGui:FindFirstChild("AxacGithubGui") then
 end
 
 local function getOnlineAsset(url, filename)
-    if not isfile or not writefile or not getcustomasset then
+    local successGet, customAssetFunc = pcall(function()
+        return isfile and writefile and getcustomasset
+    end)
+    if not successGet or not customAssetFunc then
         return "rbxassetid://6031094667"
     end
-    if not isfile(filename) then
+    
+    local successFile, fileExists = pcall(function()
+        return isfile(filename)
+    end)
+    
+    if successFile and not fileExists then
         local success, content = pcall(function()
             return game:HttpGet(url)
         end)
-        if success and content then writefile(filename, content) end
+        if success and content then 
+            pcall(function() writefile(filename, content) end)
+        end
     end
-    if isfile(filename) then return getcustomasset(filename) end
+    
+    local successAsset, assetResult = pcall(function()
+        if isfile(filename) then return getcustomasset(filename) end
+    end)
+    
+    if successAsset and assetResult then return assetResult end
     return "rbxassetid://6031094667"
 end
 
@@ -435,7 +450,6 @@ task.spawn(function()
     end
 end)
 
--- ENHANCED GUI SETUP: ADDED GLOWING EFFECTS, DYNAMIC BADGES, AND STATUS FOOTER
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AxacGithubGui"
 ScreenGui.Parent = CoreGui
@@ -490,7 +504,6 @@ VermeilChibiLeft.ScaleType = Enum.ScaleType.Fit
 VermeilChibiLeft.ZIndex = 9
 VermeilChibiLeft.Parent = MainFrame
 
--- DYNAMIC STATUS FOOTER
 local StatusBar = Instance.new("Frame")
 StatusBar.Size = UDim2.new(1, -20, 0, 22)
 StatusBar.Position = UDim2.new(0, 10, 1, -28)
@@ -555,7 +568,6 @@ ScrollContainer.Parent = MainFrame
 local UIListLayout = Instance.new("UIListLayout", ScrollContainer)
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 8)
-
 
 local function createHeaderSection(titleText)
     local sec = Instance.new("TextLabel")
